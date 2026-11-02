@@ -1,0 +1,17 @@
+from .event import Event
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..object import Object
+    from ..world_state import WorldState
+
+class CollisionEvent(Event):
+    def __init__(self, a: Object, b: Object, mtv: tuple[float, float], name: str = ''):
+        super().__init__(f'CollisionEvent({a}, {b})' if name == '' else name)
+        self.a = a
+        self.b = b
+        self.mtv = mtv
+
+    def shoot(self, _: WorldState):
+        self.a.onCollision(self.b, (-self.mtv[0], -self.mtv[1]))
+        self.b.onCollision(self.a, self.mtv)
