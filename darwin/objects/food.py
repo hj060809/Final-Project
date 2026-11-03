@@ -5,7 +5,7 @@ from ..events import Event, KillEvent, GenEvent
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..world_state import WorldState
+    from ..tick_context import TickContext
 
 class Food(Object):
     def __init__(
@@ -32,8 +32,8 @@ class Food(Object):
             n=6#height=self.size
         )
 
-    def act(self, _: WorldState, timeUnit: float) -> list[Event]:
-        self._expirationTime -= timeUnit
+    def act(self, ctx: TickContext) -> list[Event]:
+        self._expirationTime -= ctx.timeUnit
         if self._expirationTime < 0:
             return [
                 KillEvent(self, self),

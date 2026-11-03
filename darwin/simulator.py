@@ -1,26 +1,52 @@
-from .world_state import WorldState
-from .events import CollisionEvent
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .events import Event
+    from .world import World
 
 """
-run(), tick()을 통해 전체 시뮬레이션을 진행하는 최상위 클래스
+최상위 클래스
+- world를 보유하고 tick() 호출
+- 한 틱의 결과를 return
+- viewer는 simulator 결과를 모르고 반환값으로만 draw
 """
+
+class Observer:
+    def onTick(self, simulator: Simulator):
+        raise NotImplementedError("onTick() must be implemented in subclass.")
+
+    def onFrame(self, simulator: Simulator):
+        raise NotImplementedError("onFrame() must be implemented in subclass.")
 
 class Simulator:
-    def __init__(self, state: WorldState, fps: int = 60):
-        self.state = state
-        self.fps = fps
+    def __init__(
+            self,
+            world: World,
+            tickPerSec: int = 60,
+            framePerTick: int = 1
+        ):
+        self.world = world
+        self.tickPerSec = tickPerSec
+        self.framePerTick = framePerTick
 
-    def tick(self):
-        requested: Event = [CollisionEvent(a, b, mtv) for a, b, mtv in self.state.detectCollision()]
+        self.timeUnit = 1/self.tickPerSec
+        self.ticks = 0
+
+        self._observers: list[Observer] = []
+
+    def registerObserver(self, observer: Observer):
+        self._observers.append(observer)
+
+    def _tick(self):
+        self.world.tick(self.timeUnit)
+        self.ticks += 1
         
-        for obj in self.state.objects:
-            requested += obj.act(self.state, 1/self.fps)
-            obj.coord = self.state.wrap(obj.coord)
+        for o in self._observers:
+            o.onTick(self)
 
-        for e in requested:
-            e.shoot(self.state)
-        # 임시로 모든 Event 그냥 실행 (추후 우선순위/예외 로직 필요)
+    def run(self):
+        while True:
+            for _ in range(self.framePerTick):
+                self._tick()
+
+            for o in self._observers:
+                o.onFrame(self)

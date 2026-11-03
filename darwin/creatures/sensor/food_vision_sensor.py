@@ -4,7 +4,7 @@ from .sensor import Sensor
 from ..genome import SensorGene, UnitSpec, ProbUnit, PositiveUnit
 
 if TYPE_CHECKING:
-    from ...world_state import WorldState
+    from ...tick_context import TickContext
 
 class FoodVisionSensor(Sensor):
     def __init__(self, fov, range):
@@ -12,7 +12,7 @@ class FoodVisionSensor(Sensor):
         self.fov = fov
         self.range = range
 
-    def sense(self, state: WorldState, heading: tuple[float, float, float]):
+    def sense(self, ctx: TickContext, heading: tuple[float, float, float]):
         pass
 
 class FoodVisionSensorGene(SensorGene):

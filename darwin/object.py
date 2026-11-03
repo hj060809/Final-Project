@@ -5,7 +5,7 @@ import math
 
 if TYPE_CHECKING:
     from .events import Event
-    from .world_state import WorldState
+    from .tick_context import TickContext
 
 """
 먹이, 개체를 포괄하는 추상 클래스
@@ -102,7 +102,7 @@ class Object:
     def collider(self) -> Collider:
         raise NotImplementedError("collider property must be implemented in subclasses.")
 
-    def act(self, state: WorldState, timeUnit: float) -> list[Event]:
+    def act(self, ctx: TickContext) -> list[Event]:
         raise NotImplementedError("tick() method must be implemented in subclasses.")
 
     def onCollision(self, other: Object, mtv: tuple[float, float]):

@@ -29,10 +29,10 @@ genome = darwin.Genome.init(
     ]
 )
 
-world = darwin.WorldState(
+world = darwin.World(
     width=mapSize[0],
     height=mapSize[1],
-    objects=[
+    initObjects=[
         *darwin.Scatter(
             generator=lambda i: darwin.objects.Food(
                 name=f"Food_{i}", 
@@ -61,7 +61,8 @@ world = darwin.WorldState(
     ]
 )
 
-sim = darwin.Simulator(world)
-
 viewer = darwin.Viewer(window=(600, 600))
-viewer.run(sim)
+
+sim = darwin.Simulator(world, framePerTick=3)
+sim.registerObserver(viewer)
+sim.run()

@@ -1,4 +1,4 @@
-from .world_state import *
+from .world import *
 from .simulator import *
 from .object import *
 from .viewer import *

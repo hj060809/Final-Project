@@ -9,7 +9,7 @@ import random
 if TYPE_CHECKING:
     from ..events import Event
     from .genome import Genome
-    from ..world_state import WorldState
+    from ..tick_context import TickContext
 
 """
 어떻게 감각하고 행동할 것인가?
@@ -72,7 +72,7 @@ class Creature(Object):
     def collider(self):
         return self.body.getCollider(self.rotation, self.coord)
 
-    def act(self, state: WorldState, timeUnit: float) -> list[Event]:
+    def act(self, ctx: TickContext) -> list[Event]:
         """
         body의 업데이트 + 상태 보고 (Time flow)
         sensor의 감지 (Sense)
@@ -81,12 +81,12 @@ class Creature(Object):
         Event 반환 (Change)
         """
         for sensor in self.sensors:
-            sensor.sense(state, (*self.coord, self.rotation))
+            sensor.sense(ctx, (*self.coord, self.rotation))
 
-        self.polarMove(self.body.maxSpeed*timeUnit)
+        self.polarMove(self.body.maxSpeed*ctx.timeUnit)
         if random.random() > 0.99:
             self.turn((2*random.random()-1)*120)
-        self.body.health -= timeUnit
+        self.body.health -= ctx.timeUnit
         if self.body.health < 0:
             return [
                 KillEvent(self, self),

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..object import Object
-    from ..world_state import WorldState
+    from ..tick_context import TickContext
 
 class CollisionEvent(Event):
     def __init__(self, a: Object, b: Object, mtv: tuple[float, float], name: str = ''):
@@ -12,6 +12,6 @@ class CollisionEvent(Event):
         self.b = b
         self.mtv = mtv
 
-    def shoot(self, _: WorldState):
+    def shoot(self, _: TickContext):
         self.a.onCollision(self.b, (-self.mtv[0], -self.mtv[1]))
         self.b.onCollision(self.a, self.mtv)

@@ -2,7 +2,7 @@ from .event import Event
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..world_state import WorldState
+    from ..tick_context import TickContext
     from ..object import Object
 
 class GenEvent(Event):
@@ -10,5 +10,5 @@ class GenEvent(Event):
         super().__init__(f'GenEvent({blueprint.__name__}: {info})')
         self.obj = blueprint(**info)
 
-    def shoot(self, state: WorldState):
-        state.objects.append(self.obj)
+    def shoot(self, ctx: TickContext):
+        ctx.objects.append(self.obj)

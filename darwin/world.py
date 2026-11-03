@@ -1,41 +1,51 @@
-from dataclasses import dataclass, field
 import math
 import statistics
+from .events import CollisionEvent
+from .tick_context import TickContext
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .events import Event
     from .object import Object, Collider
 
 """
-데이터를 들고 있음
+전체 world
+- 데이터와 함수를 모두 보유
 """
 
-@dataclass(frozen=True)
-class WorldState:
-    width: int
-    height: int
-    objects: list[Object] = field(default_factory=list)
+class World:
+    def __init__(self, width: int, height: int, initObjects: list[Object]):
+        self.width = width
+        self.height = height
+        self._objects = initObjects
 
-    def wrap(self, coord: tuple[float, float]) -> tuple[float, float]:
+    def tick(self, timeUnit: float):
+        ctx = TickContext(self._objects, timeUnit)
+        requested: list[Event] = [CollisionEvent(a, b, mtv) for a, b, mtv in self._detectCollision()]
+
+        for o in self._objects:
+            requested.extend(o.act(ctx))
+
+        for e in requested:
+            e.shoot(ctx)
+
+        for obj in self._objects:
+            obj.coord = self._wrap(obj.coord)
+
+    def _wrap(self, coord: tuple[float, float]) -> tuple[float, float]:
         x, y = coord
         return (x % self.width, y % self.height)
 
-    def displacement(self, a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
-        """a에서 b로 가는 최단 벡터"""
-        dx = (b[0] - a[0] + self.width / 2) % self.width - self.width / 2
-        dy = (b[1] - a[1] + self.height / 2) % self.height - self.height / 2
-        return (dx, dy)
+    def _detectCollision(self) -> list[tuple[Object, Object, tuple[float, float]]]:
+        _objects = self._objects
 
-    def detectCollision(self) -> list[tuple[Object, Object, tuple[float, float]]]:
-        objects = self.objects
-
-        n = len(objects)
+        n = len(_objects)
         if n < 2:
             return []
 
-        colliders = {o: o.collider for o in objects}
+        colliders = {o: o.collider for o in _objects}
 
-        expected = self._broadDetect(objects, colliders)
+        expected = self._broadDetect(_objects, colliders)
 
         collides: list[tuple[Object, Object]] = []
         for a, b in expected:
@@ -47,11 +57,11 @@ class WorldState:
 
         return collides
 
-    def _broadDetect(self, objects: list[Object], colliders: dict[Object, Collider]) -> list[tuple[Object, Object]]:
+    def _broadDetect(self, _objects: list[Object], colliders: dict[Object, Collider]) -> list[tuple[Object, Object]]:
         W, H = self.width, self.height
         boxes = [
             (colliders[o].centerX, colliders[o].centerY, *colliders[o].extents())
-            for o in objects
+            for o in _objects
         ]
 
         # 칸 크기는 중앙값 기준. 큰 객체는 걸치는 칸마다 넣음
@@ -69,7 +79,7 @@ class WorldState:
                 for cy in ys:
                     cells.setdefault(cx + cy * cols, []).append(i)
 
-        n = len(objects)
+        n = len(_objects)
         halfW, halfH = W / 2, H / 2
         seen: set[int] = set()
         pairs: list[tuple[Object, Object]] = []
@@ -87,13 +97,13 @@ class WorldState:
                     if key in seen:
                         continue
                     seen.add(key)
-                    pairs.append((objects[i], objects[j]))
+                    pairs.append((_objects[i], _objects[j]))
 
         return pairs
 
     def _computeMTV(self, a: Collider, b: Collider) -> tuple[float, float] | None:
         """충돌하면 b를 밀어낼 벡터를, 충돌하지 않으면 None을 반환합니다."""
-        dx, dy = self.displacement((a.centerX, a.centerY), (b.centerX, b.centerY))
+        dx, dy = self._displacement((a.centerX, a.centerY), (b.centerX, b.centerY))
 
         best = math.inf
         mx = my = 0.0
@@ -116,3 +126,9 @@ class WorldState:
                     best, mx, my = pushMinus, -ax * pushMinus, -ay * pushMinus
 
         return mx, my
+
+    def _displacement(self, a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
+        """a에서 b로 가는 최단 벡터"""
+        dx = (b[0] - a[0] + self.width / 2) % self.width - self.width / 2
+        dy = (b[1] - a[1] + self.height / 2) % self.height - self.height / 2
+        return (dx, dy)

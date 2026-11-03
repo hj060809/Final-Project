@@ -5,7 +5,7 @@ from ..events import Event
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..world_state import WorldState
+    from ..tick_context import TickContext
 
 class Obstacle(Object):
     def __init__(
@@ -30,7 +30,7 @@ class Obstacle(Object):
             height=self.height
         )
 
-    def act(self, unused1: WorldState, unused2: float) -> list[Event]:
+    def act(self, ctx: TickContext) -> list[Event]:
         return []
 
     def onCollision(self, other: Object, mtv: tuple[float, float]):
