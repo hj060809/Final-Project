@@ -1,23 +1,16 @@
-from typing import ClassVar, TYPE_CHECKING
+from typing import ClassVar
 
-from .sensor import Sensor
 from ..genome import SensorGene, UnitSpec, ProbUnit, PositiveUnit
+from ...objects import Food
+from .vision_sensor import VisionSensor
 
-if TYPE_CHECKING:
-    from ...tick_context import TickContext
-
-class FoodVisionSensor(Sensor):
-    def __init__(self, fov, range):
-        super().__init__()
-        self.fov = fov
-        self.range = range
-
-    def sense(self, ctx: TickContext, heading: tuple[float, float, float]):
-        pass
+class FoodVisionSensor(VisionSensor):
+    STIMULUS_NAME: ClassVar[str] = "Appetite"
+    TARGET: ClassVar[type] = Food
 
 class FoodVisionSensorGene(SensorGene):
     SCHEMA: ClassVar[tuple[UnitSpec, ...]] = (
-        UnitSpec('fov', initValue=0.2, initStd=0.1, unitType=ProbUnit),
-        UnitSpec('range', initValue=10, initStd=1, unitType=PositiveUnit)
+        UnitSpec('fov', initValue=0.2, initStd=0.1, unitType=ProbUnit), # 좌우 반각
+        UnitSpec('range', initValue=15, initStd=3, unitType=PositiveUnit)
     )
     PRODUCT = FoodVisionSensor

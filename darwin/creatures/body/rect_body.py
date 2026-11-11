@@ -1,20 +1,30 @@
 from typing import ClassVar, TYPE_CHECKING
+import math
 
 from .body import Body
 from ..genome import BodyGene, UnitSpec, PositiveUnit
 from ...object import RectCollider
+from functools import cached_property
+
+if TYPE_CHECKING:
+    from ..brain import Judgement
+    from ...events import Trigger
 
 class RectBody(Body):
     def __init__(
             self,
-            health: float,
-            width: float,
-            height: float,
-            maxSpeed: float,
+            maxEnergy: float,
+            whRatio: float,
+            maxSpeed: float
         ):
-        super().__init__(health, maxSpeed)
-        self.width = width
-        self.height = height
+        super().__init__(maxEnergy, maxSpeed)
+        self.whRatio=whRatio
+        self.width = math.sqrt(self.size*whRatio)
+        self.height = math.sqrt(self.size/whRatio)
+        
+    @property
+    def size(self):
+        return self.maxEnergy/10
 
     def getCollider(self, direction: float, coord: tuple[float, float]) -> RectCollider:
         return RectCollider(
@@ -27,9 +37,8 @@ class RectBody(Body):
 
 class RectBodyGene(BodyGene):
     SCHEMA: ClassVar[tuple[UnitSpec, ...]] = (
-        UnitSpec('health', initValue=100, initStd=10, unitType=PositiveUnit),
-        UnitSpec('width', initValue=20, initStd=4, unitType=PositiveUnit),
-        UnitSpec('height', initValue=20, initStd=4, unitType=PositiveUnit),
-        UnitSpec('maxSpeed', initValue=30, initStd=10, unitType=PositiveUnit)
+        UnitSpec('maxEnergy', initValue=300, initStd=50, unitType=PositiveUnit),
+        UnitSpec('whRatio', initValue=1, initStd=0.1, unitType=PositiveUnit),
+        UnitSpec('maxSpeed', initValue=8, initStd=10, unitType=PositiveUnit)
     )
     PRODUCT: ClassVar[type] = RectBody

@@ -1,25 +1,28 @@
 from functools import cached_property
 
 from ..object import Object, RegularPolygonCollider
-from ..events import Event, KillEvent, GenEvent
-from typing import TYPE_CHECKING
+from ..events import SuicideEvent
+from .obstacle import Obstacle
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from ..tick_context import TickContext
+    from ..events import Event
 
 class Food(Object):
+    IS_SOLID: ClassVar[bool] = False
+
     def __init__(
             self,
             name: str,
             energy: float,
-            size: float,
+            radius: float,
             initCoord: tuple[float, float],
             initRotation: float = 0,
-            expirationTime: float = 60 # tick
+            expirationTime: float = 60 # sec
         ):
-        super().__init__(name, initCoord, initRotation, color=(0,255,0))
-        self.energy = energy
-        self.size = size
+        super().__init__(name, initCoord, initRotation, energy, color=(0,255,0))
+        self.radius = radius
         self._expirationTime = expirationTime
 
     @cached_property
@@ -28,19 +31,14 @@ class Food(Object):
             direction=self.rotation,
             centerX=self.coord[0],
             centerY=self.coord[1],
-            radius=self.size,#width=self.size,
-            n=6#height=self.size
+            radius=self.radius,
+            n=6
         )
 
-    def act(self, ctx: TickContext) -> list[Event]:
+    def act(self, ctx: TickContext):
         self._expirationTime -= ctx.timeUnit
         if self._expirationTime < 0:
-            return [
-                KillEvent(self, self),
-            ]
+            self.enqueueEvent(SuicideEvent(self))
 
-        return []
-
-    def onCollision(self, other: Object, mtv: tuple[float, float]):
-        self._expirationTime = 0
-        self.energy = 0
+    def onEvent(self, kind: type[Event], reqBy: Object):
+        pass

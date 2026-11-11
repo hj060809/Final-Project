@@ -1,10 +1,12 @@
 import pygame
 import math
 from typing import TYPE_CHECKING, Callable, ClassVar
-from .object import Object
-from .creatures.creature import Creature
-from .objects.food import Food
-from .simulator import Observer
+
+from ..creatures.sensor import FoodVisionSensor, CreatureVisionSensor
+from ..object import Object
+from ..creatures.creature import Creature
+from ..objects.food import Food
+from ..simulator import Observer
 import ctypes
 import sys
 
@@ -12,8 +14,8 @@ if sys.platform == 'win32':
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
 
 if TYPE_CHECKING:
-    from .world import World
-    from .simulator import Simulator
+    from ..world import World
+    from ..simulator import Simulator
 
 BG_COLOR = (24, 27, 34)
 MAP_COLOR = (32, 36, 45)
@@ -21,8 +23,18 @@ GRID_COLOR = (42, 47, 58)
 GRID_STEP = 10
 SUPERSAMPLE = 2
 
+ARC_STEP = 6
+
 class Viewer(Observer):
     _renderers: ClassVar[dict[type, Callable]] = {}
+    _sensorRenderers: ClassVar[dict[type, Callable]] = {}
+
+    @classmethod
+    def sensorRenderer(cls, sensorType: type):
+        def register(fn):
+            cls._sensorRenderers[sensorType] = fn
+            return fn
+        return register
 
     @classmethod
     def renderer(cls, objType: type):
@@ -31,7 +43,9 @@ class Viewer(Observer):
             return fn
         return register
 
-    def __init__(self, window: tuple[int, int] = (600, 600)):
+    def __init__(self, window: tuple[int, int] = (600, 600), drawOnSkip: bool = False,):
+        super().__init__(drawOnSkip=drawOnSkip)
+        
         pygame.init()
         self.screen = pygame.display.set_mode(window)
         pygame.display.set_caption("Darwin Basic Viewer")
@@ -40,6 +54,8 @@ class Viewer(Observer):
         self._offset = (0.0, 0.0)
         self._worldHeight = 0
         self.clock = pygame.time.Clock()
+        self.overlay = pygame.Surface(self.canvas.get_size(), pygame.SRCALPHA)
+        self.showSensors = True
 
     def _fitTo(self, mapWidth: int, mapHeight: int):
         """맵 비율을 유지한 채 화면 중앙에 맞춤"""
@@ -68,6 +84,13 @@ class Viewer(Observer):
             pygame.draw.line(self.canvas, GRID_COLOR, self.toScreen((x, 0)), self.toScreen((x, mapHeight)), SUPERSAMPLE)
         for y in range(0, mapHeight + 1, GRID_STEP):
             pygame.draw.line(self.canvas, GRID_COLOR, self.toScreen((0, y)), self.toScreen((mapWidth, y)), SUPERSAMPLE)
+    
+    def _drawSensors(self, creature: Creature):
+        for sensor in creature.sensors:
+            for kind in type(sensor).__mro__:
+                if kind in self._sensorRenderers:
+                    self._sensorRenderers[kind](self, creature, sensor)
+                    break
 
     def toScreenLength(self, length: float) -> int:
         """월드 길이 → 픽셀 길이 (최소 1픽셀)"""
@@ -83,8 +106,21 @@ class Viewer(Observer):
     def render(self, world: World):
         self._fitTo(world.width, world.height)
         self._drawBackground(world.width, world.height)
-        for obj in sorted(world._objects, key=lambda o: isinstance(o, Creature)):    # Creature를 위에 그림
-            self._draw(obj)
+
+        creatures = [o for o in world._objects if isinstance(o, Creature)]
+        for obj in world._objects:
+            if not isinstance(obj, Creature):
+                self._draw(obj)
+
+        if self.showSensors:                      # 먹이 위, Creature 아래
+            self.overlay.fill((0, 0, 0, 0))
+            for c in creatures:
+                self._drawSensors(c)
+            self.canvas.blit(self.overlay, (0, 0))
+
+        for c in creatures:
+            self._draw(c)
+
         pygame.transform.smoothscale(self.canvas, self.screen.get_size(), self.screen)
         pygame.display.flip()
 
@@ -93,9 +129,11 @@ class Viewer(Observer):
             if event.type == pygame.QUIT:
                 self.close()
                 sys.exit(0)
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                self.showSensors = not self.showSensors     # S 키로 켜고 끄기
 
         self.render(simulator.world)
-        self.clock.tick(60)
+        self.clock.tick(simulator.tickPerSec)
 
     def onTick(self, simulator: Simulator):
         pass
@@ -112,6 +150,31 @@ def _polygonOf(viewer: Viewer, collider) -> list[tuple[int, int]]:
 def lighten(color: tuple[int, int, int], t: float = 0.55) -> tuple[int, int, int]:
     return tuple(round(c + (255 - c) * t) for c in color)
 
+def sectorPoints(viewer: Viewer, center, rotation: float, halfAngle: float, radius: float):
+    """시선 방향 기준 ±halfAngle 범위의 부채꼴 꼭짓점. 180 이상이면 원"""
+    if halfAngle >= 180:
+        start, end, points = rotation - 180, rotation + 180, []
+    else:
+        start, end, points = rotation - halfAngle, rotation + halfAngle, [viewer.toScreen(center)]
+
+    steps = max(2, math.ceil((end - start) / ARC_STEP))
+    for k in range(steps + 1):
+        t = math.radians(start + (end - start) * k / steps)
+        points.append(viewer.toScreen((center[0] + radius * math.sin(t), center[1] + radius * math.cos(t))))
+    return points
+
+@Viewer.sensorRenderer(FoodVisionSensor)
+def drawFoodVision(viewer: Viewer, creature: Creature, sensor: FoodVisionSensor):
+    points = sectorPoints(viewer, creature.coord, creature.rotation, sensor.fov * 180, sensor.range)
+    pygame.draw.polygon(viewer.overlay, (126, 217, 111, 28), points)                # 채우기
+    pygame.draw.polygon(viewer.overlay, (126, 217, 111, 90), points, SUPERSAMPLE)   # 테두리
+
+@Viewer.sensorRenderer(CreatureVisionSensor)
+def drawCreatureVision(viewer: Viewer, creature: Creature, sensor: CreatureVisionSensor):
+    points = sectorPoints(viewer, creature.coord, creature.rotation, sensor.fov * 180, sensor.range)
+    pygame.draw.polygon(viewer.overlay, (217, 111, 126, 28), points)                # 채우기
+    pygame.draw.polygon(viewer.overlay, (217, 111, 126, 90), points, SUPERSAMPLE)   # 테두리
+
 @Viewer.renderer(Object)
 def drawObject(viewer: Viewer, obj: Object):
     points = _polygonOf(viewer, obj.collider)
@@ -120,8 +183,8 @@ def drawObject(viewer: Viewer, obj: Object):
 
 @Viewer.renderer(Food)
 def drawFood(viewer: Viewer, food: Food):
-    pygame.draw.circle(viewer.canvas, food.color, viewer.toScreen(food.coord), viewer.toScreenLength(food.size))
-    pygame.draw.circle(viewer.canvas, lighten(food.color), viewer.toScreen(food.coord), viewer.toScreenLength(food.size), SUPERSAMPLE)
+    pygame.draw.circle(viewer.canvas, food.color, viewer.toScreen(food.coord), viewer.toScreenLength(food.radius))
+    pygame.draw.circle(viewer.canvas, lighten(food.color), viewer.toScreen(food.coord), viewer.toScreenLength(food.radius), SUPERSAMPLE)
 
 @Viewer.renderer(Creature)
 def drawCreature(viewer: Viewer, creature: Creature):

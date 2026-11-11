@@ -1,14 +1,26 @@
-from .event import Event
-from typing import TYPE_CHECKING
+from .event import Event, Trigger
+from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from ..tick_context import TickContext
     from ..object import Object
+    from ..tick_context import TickContext
 
 class GenEvent(Event):
-    def __init__(self, blueprint: type[Object], **info):
-        super().__init__(f'GenEvent({blueprint.__name__}: {info})')
-        self.obj = blueprint(**info)
+    def __init__(self, targetType: type[Object], **deps):
+        super().__init__(f'GenEvent({targetType})')
+        self.obj = targetType(**deps)
+
+    def notify(self):
+        pass
 
     def shoot(self, ctx: TickContext):
         ctx.objects.append(self.obj)
+
+@dataclass(frozen=True)
+class GenTrigger(Trigger):
+    targetType: type[Object]
+    deps: dict[str, Any]
+
+    def by(self, executor: Object) -> Event:
+        return GenEvent(executor, **self.deps)

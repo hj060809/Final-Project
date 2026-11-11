@@ -16,7 +16,7 @@ class Obstacle(Object):
             initCoord: tuple[float, float],
             initRotation: float = 0
         ):
-        super().__init__(name, initCoord, initRotation)
+        super().__init__(name, initCoord, initRotation, float('inf'))
         self.width = width
         self.height = height
 
@@ -30,8 +30,8 @@ class Obstacle(Object):
             height=self.height
         )
 
-    def act(self, ctx: TickContext) -> list[Event]:
-        return []
+    def act(self, ctx: TickContext):
+        pass
 
-    def onCollision(self, other: Object, mtv: tuple[float, float]):
+    def onEvent(self, kind: type[Event], reqBy: Object):
         pass

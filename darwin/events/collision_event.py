@@ -12,6 +12,10 @@ class CollisionEvent(Event):
         self.b = b
         self.mtv = mtv
 
+    def notify(self):
+        self.a.onEvent(CollisionEvent, self.b)
+        self.b.onEvent(CollisionEvent, self.a)
+        
     def shoot(self, _: TickContext):
         self.a.onCollision(self.b, (-self.mtv[0], -self.mtv[1]))
         self.b.onCollision(self.a, self.mtv)

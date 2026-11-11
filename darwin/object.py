@@ -73,22 +73,40 @@ class RegularPolygonCollider(Collider):
         return ((self.radius*math.sin(i*angle), self.radius*math.cos(i*angle)) for i in range(self.n))
 
 class Object:
-    COLLISION_DETECTION: ClassVar[bool] = False
+    COLLISION_DETECTION: ClassVar[bool] = False # Collision 연산에 고려할지
+    IS_FIXED: ClassVar[bool] = True # 충돌 시 현 위치를 고정할지
+    IS_SOLID: ClassVar[bool] = True # 충돌 시 상대가 날 뚫고 지나갈지
 
     def __init__(
             self,
             name: str,
             initCoord: tuple[float, float],
-            initRotation = float,
+            initRotation: float,
+            initEnergy: float,
             color: tuple[int, int, int] = (0, 0, 0)
         ):
         self.coord = initCoord
         self._rotation = initRotation
+        self._maxEnergy = initEnergy
+        self._energy = initEnergy*1
         self.name = name
         self.color = color
+        self.eventQueue = []
 
     def __repr__(self):
         return f'Object({self.name}, {self.coord})'
+
+    @property
+    def energy(self) -> float:
+        return self._energy
+
+    def spend(self, amount: float) -> float:
+        paid = min(amount, self.energy)
+        self._energy -= paid
+        return paid
+
+    def gain(self, amount: float):
+        self._energy = min(self._maxEnergy, self._energy+amount)
 
     @property
     def rotation(self) -> float:
@@ -102,8 +120,29 @@ class Object:
     def collider(self) -> Collider:
         raise NotImplementedError("collider property must be implemented in subclasses.")
 
-    def act(self, ctx: TickContext) -> list[Event]:
-        raise NotImplementedError("tick() method must be implemented in subclasses.")
+    def enqueueEvent(self, e: Event):
+        self.eventQueue.append(e)
 
+    def move(self, dx: float, dy: float):
+        self.coord = (self.coord[0]+dx, self.coord[1]+dy)
+
+    def act(self, ctx: TickContext) -> list[Event]:
+        raise NotImplementedError("onTick() method must be implemented in subclasses.")
+    
+    def onTick(self, ctx: TickContext):
+        self.act(ctx)
+        requested = self.eventQueue.copy()
+        self.eventQueue = []
+        return requested
+    
     def onCollision(self, other: Object, mtv: tuple[float, float]):
-        raise NotImplementedError("onCollision() method must be implemented in subclasses.")
+        if self.IS_FIXED or not other.IS_SOLID:
+            return
+
+        if other.IS_FIXED:
+            self.move(mtv[0], mtv[1])
+        else:
+            self.move(mtv[0]/2, mtv[1]/2)
+
+    def onEvent(self, kind: type[Event], reqBy: Object):
+        raise NotImplementedError("onEvent() method must be implemented in subclasses.")
