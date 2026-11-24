@@ -1,9 +1,9 @@
 import itertools
 import random
 
-from darwin import EventScheduler, TickContext, GenEvent
-from darwin.creatures import Creature
-from darwin.objects import Food
+from genepy import EventScheduler, TickContext, GenEvent
+from genepy.creatures import Creature
+from genepy.objects import Food
 
 FN = 3
 FEED_COUNT = 5

@@ -1,4 +1,4 @@
-import darwin
+import genepy
 import numpy as np
 from sim_1.event import FEED_EVENT, MATE_EVENT
 import time
@@ -17,37 +17,37 @@ viewer
 TPS = 60
 mapSize = (300, 300)
 
-PREY_SPECIOUS = darwin.Specious(
+PREY_SPECIOUS = genepy.Specious(
     name='prey',
-    constraints=darwin.CONSTRAINT_PACK
+    constraints=genepy.CONSTRAINT_PACK
 )
 
-PREY_GENOME1 = darwin.Genome.init(
-    bodyGene=darwin.RectBodyGene.init(
+PREY_GENOME1 = genepy.Genome.init(
+    bodyGene=genepy.RectBodyGene.init(
         units=(
-            darwin.PositiveUnit.fromValue('maxEnergy', 300, 50),
-            darwin.PositiveUnit.fromValue('whRatio', 1, 0.5),
-            darwin.PositiveUnit.fromValue('maxSpeed', 10, 2),
+            genepy.PositiveUnit.fromValue('maxEnergy', 300, 50),
+            genepy.PositiveUnit.fromValue('whRatio', 1, 0.5),
+            genepy.PositiveUnit.fromValue('maxSpeed', 10, 2),
         )
     ),
-    brainGene=darwin.RuleBrainGene.init(
+    brainGene=genepy.RuleBrainGene.init(
         units=(
-            darwin.ProbUnit.fromValue('hostility', 0.3, 0.1),
-            darwin.ProbUnit.fromValue('cowardice', 0.5, 0.1),
+            genepy.ProbUnit.fromValue('hostility', 0.3, 0.1),
+            genepy.ProbUnit.fromValue('cowardice', 0.5, 0.1),
         )
     ),
     sensorGenes=[
-        darwin.FoodVisionSensorGene.init(),
-        darwin.CreatureVisionSensorGene.init()
+        genepy.FoodVisionSensorGene.init(),
+        genepy.CreatureVisionSensorGene.init()
     ]
 )
 
-world = darwin.World(
+world = genepy.World(
     width=mapSize[0],
     height=mapSize[1],
     initObjects=[
-        *darwin.Scatter(
-            generator=lambda i: darwin.creature.Creature(
+        *genepy.Scatter(
+            generator=lambda i: genepy.creature.Creature(
                 name=f'G_{i}',
                 initCoord=(np.random.uniform(0, mapSize[0]), np.random.uniform(0, mapSize[1])),
                 initRotation=np.random.uniform(0, 360),
@@ -97,16 +97,16 @@ for i in range(skip):
         )
         lastLog, lastTick = now, done
 
-viewer = darwin.Viewer(window=(600, 600))
+viewer = genepy.Viewer(window=(600, 600))
 
-stats1 = darwin.StatisticalViewer(specious=PREY_SPECIOUS, traits={
+stats1 = genepy.StatisticalViewer(specious=PREY_SPECIOUS, traits={
     'maxSpeed':     lambda c: c.body.maxSpeed,
-    'cowardice':     lambda c: c.brain.cowardice if isinstance(c.brain, darwin.RuleBrain) else 0.0,
-    'creatureRange': lambda c: next((s.range for s in c.sensors if isinstance(s, darwin.CreatureVisionSensor)), 0.0),
-    'hostility': lambda c: c.brain.hostility if isinstance(c.brain, darwin.RuleBrain) else 0.0,
+    'cowardice':     lambda c: c.brain.cowardice if isinstance(c.brain, genepy.RuleBrain) else 0.0,
+    'creatureRange': lambda c: next((s.range for s in c.sensors if isinstance(s, genepy.CreatureVisionSensor)), 0.0),
+    'hostility': lambda c: c.brain.hostility if isinstance(c.brain, genepy.RuleBrain) else 0.0,
 })
 
-sim = darwin.Simulator(world, tickPerSec=TPS, framePerTick=10)
+sim = genepy.Simulator(world, tickPerSec=TPS, framePerTick=10)
 sim.registerObserver(viewer)
 sim.registerObserver(stats1)
 sim.run()
